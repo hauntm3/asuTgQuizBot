@@ -38,14 +38,46 @@ class UserStats(Base):
     __tablename__ = "user_stats"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, nullable=False)
+    user_id = Column(Integer, unique=True)
     username = Column(String)
+    mmr = Column(Integer, default=1000)  # Начальный MMR
     total_tests = Column(Integer, default=0)
-    junior_avg_score = Column(Float, default=0.0)
-    middle_avg_score = Column(Float, default=0.0)
-    senior_avg_score = Column(Float, default=0.0)
-    best_score = Column(Float, default=0.0)
-    last_test_date = Column(DateTime, default=datetime.utcnow)
+    last_test_date = Column(DateTime)
+
+    def calculate_mmr_change(
+        self, correct_answers: int, difficulty_level: str, opponent_mmr: int = 1500
+    ):
+        # Базовые очки за каждый правильный ответ
+        base_points = 25
+
+        # Множитель сложности
+        difficulty_multiplier = {
+            "junior": 1.0,
+            "middle": 1.5,
+            "senior": 2.0,
+            "junior_python": 1.0,
+            "middle_python": 1.5,
+            "senior_python": 2.0,
+        }
+
+        # Получаем множитель сложности
+        level_multiplier = difficulty_multiplier.get(difficulty_level.lower(), 1.0)
+
+        # Рассчитываем ожидаемый результат по формуле Эло
+        expected_score = 1 / (1 + 10 ** ((opponent_mmr - self.mmr) / 400))
+
+        # Фактический результат (процент правильных ответов)
+        actual_score = correct_answers / 10
+
+        # Рассчитываем изменение MMR
+        mmr_change = int(
+            base_points * level_multiplier * (actual_score - expected_score)
+        )
+
+        # Ограничиваем максимальное изменение MMR
+        mmr_change = max(min(mmr_change, 100), -50)
+
+        return mmr_change
 
 
 # Создаем подключение к базе данных

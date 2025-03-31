@@ -25,14 +25,13 @@ async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, message=
     keyboard = [
         [InlineKeyboardButton("🎯 Начать тестирование", callback_data="start_test")],
         [InlineKeyboardButton("📊 Таблица лидеров", callback_data="leaderboard")],
-        [InlineKeyboardButton("📈 Моя статистика", callback_data="my_stats")],
         [InlineKeyboardButton("ℹ️ Помощь", callback_data="help")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     text = message or (
-        "🎯 Добро пожаловать в Java Quiz Bot!\n\n"
-        "Здесь вы можете проверить свои знания Java на разных уровнях сложности.\n"
+        "🎯 Добро пожаловать в Quiz Bot!\n\n"
+        "Здесь вы можете проверить свои знания Java и Python на разных уровнях сложности.\n"
         "Выберите действие из меню ниже:"
     )
 
@@ -94,6 +93,7 @@ async def show_difficulty_levels(update: Update, context: ContextTypes.DEFAULT_T
                 callback_data=f"level_{selected_language}_senior",
             )
         ],
+        [InlineKeyboardButton("⬅️ Назад", callback_data="start_test")],
         [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -294,23 +294,13 @@ async def finish_test(
         # Обновляем статистику пользователя
         stats = db.query(UserStats).filter(UserStats.user_id == user_id).first()
         if stats:
+            # Рассчитываем изменение MMR
+            mmr_change = stats.calculate_mmr_change(correct_answers, level)
+            old_mmr = stats.mmr
+            stats.mmr = max(
+                0, stats.mmr + mmr_change
+            )  # MMR не может быть отрицательным
             stats.total_tests += 1
-            score = (correct_answers / 10) * 100
-
-            if level == "junior":
-                stats.junior_avg_score = (
-                    stats.junior_avg_score * (stats.total_tests - 1) + score
-                ) / stats.total_tests
-            elif level == "middle":
-                stats.middle_avg_score = (
-                    stats.middle_avg_score * (stats.total_tests - 1) + score
-                ) / stats.total_tests
-            else:
-                stats.senior_avg_score = (
-                    stats.senior_avg_score * (stats.total_tests - 1) + score
-                ) / stats.total_tests
-
-            stats.best_score = max(stats.best_score, score)
             stats.last_test_date = datetime.utcnow()
 
         db.commit()
@@ -327,13 +317,16 @@ async def finish_test(
         else:
             grade += "💪 Не отчаивайтесь, продолжайте учиться!"
 
+        # Получаем базовый уровень для отображения
+        display_level = level.split("_")[0] if "_" in level else level
+
+        # Добавляем информацию об изменении MMR
+        mmr_text = "🔺" if mmr_change > 0 else "🔻" if mmr_change < 0 else "➖"
         stats_text = (
-            f"\n\n📊 Ваша статистика:\n"
-            f"Уровень: {level.capitalize()}\n"
+            f"\n\nРезультаты теста:\n"
+            f"Уровень: {display_level.capitalize()}\n"
             f"Правильных ответов: {correct_answers}/10 ({percentage:.1f}%)\n"
-            f"Всего тестов пройдено: {stats.total_tests}\n"
-            f"Лучший результат: {stats.best_score:.1f}%\n"
-            f"Средний результат ({level}): {getattr(stats, f'{level}_avg_score'):.1f}%"
+            f"MMR: {old_mmr} {mmr_text} {abs(mmr_change)} = {stats.mmr}\n"
         )
 
         keyboard = [
@@ -343,11 +336,17 @@ async def finish_test(
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        if update.callback_query:
-            await update.callback_query.edit_message_text(
-                text=grade + stats_text, reply_markup=reply_markup
-            )
-        else:
+        try:
+            if update.callback_query:
+                await update.callback_query.edit_message_text(
+                    text=grade + stats_text, reply_markup=reply_markup
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=user_id, text=grade + stats_text, reply_markup=reply_markup
+                )
+        except Exception as e:
+            print(f"Ошибка при отображении результатов: {e}")
             await context.bot.send_message(
                 chat_id=user_id, text=grade + stats_text, reply_markup=reply_markup
             )
@@ -359,73 +358,39 @@ async def finish_test(
 async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = SessionLocal()
     try:
-        # Вычисляем средний рейтинг для каждого пользователя
+        # Получаем топ-5 пользователей по MMR
         top_users = (
             db.query(UserStats)
-            .filter(
-                UserStats.total_tests > 0
-            )  # Только пользователи, прошедшие хотя бы 1 тест
-            .order_by(
-                desc(
-                    (
-                        UserStats.junior_avg_score
-                        + UserStats.middle_avg_score
-                        + UserStats.senior_avg_score
-                    )
-                    / 3
-                )
-            )
-            .limit(10)
+            .filter(UserStats.total_tests > 0)
+            .order_by(desc(UserStats.mmr))
+            .limit(5)
             .all()
         )
 
-        text = "🏆 Рейтинг участников\n\n"
-        text += "Рейтинг рассчитывается как среднее значение\nпо результатам всех уровней сложности\n\n"
+        text = "🏆 Таблица лидеров\n\n"
 
-        for i, user in enumerate(top_users, 1):
-            avg_rating = (
-                user.junior_avg_score + user.middle_avg_score + user.senior_avg_score
-            ) / 3
+        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+        ranks = ["Грандмастер", "Мастер", "Эксперт", "Специалист", "Новичок"]
+
+        for i, user in enumerate(top_users):
+            medal = medals[i]
+            rank = ranks[i] if user.mmr >= 1000 else "Новичок"
+            username = user.username or f"User{user.user_id}"
+
+            # Добавляем звездочки в зависимости от MMR
+            stars = "⭐" * (user.mmr // 200)  # 1 звезда за каждые 200 MMR
+
             text += (
-                f"{i}. {user.username or f'User{user.user_id}'}\n"
-                f"   📊 Рейтинг: {avg_rating:.1f}%\n"
-                f"   📝 Тестов: {user.total_tests}\n\n"
+                f"{medal} {username}\n"
+                f"    {stars}\n"
+                f"    Ранг: {rank}\n"
+                f"    MMR: {user.mmr}\n"
+                f"    Тестов пройдено: {user.total_tests}\n\n"
             )
 
         if not top_users:
-            text += "Пока никто не прошел ни одного теста 😢\n"
-            text += "Станьте первым!\n"
-
-        keyboard = [
-            [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await update.callback_query.edit_message_text(
-            text=text, reply_markup=reply_markup
-        )
-
-    finally:
-        db.close()
-
-
-async def show_my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.callback_query.from_user.id
-    db = SessionLocal()
-    try:
-        stats = db.query(UserStats).filter(UserStats.user_id == user_id).first()
-        if not stats:
-            text = "У вас пока нет статистики. Пройдите хотя бы один тест!"
-        else:
-            text = (
-                f"📊 Ваша статистика:\n\n"
-                f"Всего тестов пройдено: {stats.total_tests}\n"
-                f"Средние результаты по уровням:\n"
-                f"👶 Junior: {stats.junior_avg_score:.1f}%\n"
-                f"👨‍💻 Middle: {stats.middle_avg_score:.1f}%\n"
-                f"🧙‍♂️ Senior: {stats.senior_avg_score:.1f}%\n\n"
-                f"Последний тест: {stats.last_test_date.strftime('%d.%m.%Y %H:%M')}"
-            )
+            text += "😢 Пока никто не прошел ни одного теста\n"
+            text += "🎯 Станьте первым в рейтинге!\n"
 
         keyboard = [
             [InlineKeyboardButton("🔄 Пройти тест", callback_data="start_test")],
@@ -453,12 +418,8 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   👶 Junior - базовые концепции\n"
         "   👨‍💻 Middle - продвинутые темы\n"
         "   🧙‍♂️ Senior - архитектура и паттерны\n\n"
-        "3. Статистика:\n"
-        "   • Просмотр личной статистики\n"
-        "   • Таблица лидеров\n"
-        "   • История тестирования\n\n"
-        "4. Навигация:\n"
-        "   • Кнопка '🏠 Главное меню' доступна везде\n"
+        "3. Навигация:\n"
+        "   • Кнопка '🏠 Главное меню' доступна везде(кроме процесса тестирования)\n"
         "   • Можно прервать тест в любой момент\n\n"
         "Удачи в изучении программирования! 🚀"
     )
@@ -492,7 +453,6 @@ def main():
     application.add_handler(
         CallbackQueryHandler(show_leaderboard, pattern="^leaderboard$")
     )
-    application.add_handler(CallbackQueryHandler(show_my_stats, pattern="^my_stats$"))
     application.add_handler(CallbackQueryHandler(show_help, pattern="^help$"))
 
     # Запускаем бота
