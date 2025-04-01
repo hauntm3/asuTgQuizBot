@@ -329,6 +329,14 @@ async def finish_test(
             f"MMR: {old_mmr} {mmr_text} {abs(mmr_change)} = {stats.mmr}\n"
         )
 
+        # Сначала отправляем сообщение с результатами без кнопок
+        try:
+            await context.bot.send_message(chat_id=user_id, text=grade + stats_text)
+        except Exception as e:
+            print(f"Ошибка при отображении результатов: {e}")
+
+        # Затем отправляем новое сообщение с кнопками навигации
+        navigation_text = "Выберите дальнейшее действие:"
         keyboard = [
             [InlineKeyboardButton("🔄 Пройти тест снова", callback_data="start_test")],
             [InlineKeyboardButton("📊 Таблица лидеров", callback_data="leaderboard")],
@@ -336,20 +344,9 @@ async def finish_test(
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        try:
-            if update.callback_query:
-                await update.callback_query.edit_message_text(
-                    text=grade + stats_text, reply_markup=reply_markup
-                )
-            else:
-                await context.bot.send_message(
-                    chat_id=user_id, text=grade + stats_text, reply_markup=reply_markup
-                )
-        except Exception as e:
-            print(f"Ошибка при отображении результатов: {e}")
-            await context.bot.send_message(
-                chat_id=user_id, text=grade + stats_text, reply_markup=reply_markup
-            )
+        await context.bot.send_message(
+            chat_id=user_id, text=navigation_text, reply_markup=reply_markup
+        )
 
     finally:
         db.close()
