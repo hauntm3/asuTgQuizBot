@@ -4,7 +4,7 @@ from database import create_tables, SessionLocal, Question
 def add_python_questions():
     db = SessionLocal()
     try:
-        # Junior level questions
+        # Junior level 
         junior_questions = [
             {
                 "level": "junior_python",
