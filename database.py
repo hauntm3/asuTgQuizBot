@@ -63,19 +63,31 @@ class UserStats(Base):
         # Получаем множитель сложности
         level_multiplier = difficulty_multiplier.get(difficulty_level.lower(), 1.0)
 
-        # Рассчитываем ожидаемый результат по формуле Эло
-        expected_score = 1 / (1 + 10 ** ((opponent_mmr - self.mmr) / 400))
+        # Рассчитываем процент правильных ответов
+        score_percentage = (correct_answers / 10) * 100
 
-        # Фактический результат (процент правильных ответов)
-        actual_score = correct_answers / 10
+        # Новая система штрафов и наград
+        if score_percentage < 30:  # Очень плохой результат
+            mmr_change = int(-80 * level_multiplier)  # Большой штраф
+        elif score_percentage < 50:  # Плохой результат
+            mmr_change = int(-50 * level_multiplier)  # Средний штраф
+        elif score_percentage < 70:  # Средний результат
+            mmr_change = int(-20 * level_multiplier)  # Небольшой штраф
+        elif score_percentage < 90:  # Хороший результат
+            mmr_change = int(30 * level_multiplier)  # Небольшая награда
+        else:  # Отличный результат
+            mmr_change = int(50 * level_multiplier)  # Большая награда
 
-        # Рассчитываем изменение MMR
-        mmr_change = int(
-            base_points * level_multiplier * (actual_score - expected_score)
-        )
+        # Дополнительный множитель для защиты новичков
+        if self.mmr < 800:  # Защита новичков от больших потерь
+            if mmr_change < 0:
+                mmr_change = int(mmr_change * 0.5)  # Уменьшаем штраф вдвое
+        elif self.mmr > 2000:  # Более строгие правила для опытных
+            if mmr_change < 0:
+                mmr_change = int(mmr_change * 1.5)  # Увеличиваем штраф в 1.5 раза
 
-        # Ограничиваем максимальное изменение MMR
-        mmr_change = max(min(mmr_change, 100), -50)
+        # Защита от слишком больших изменений
+        mmr_change = max(min(mmr_change, 150), -100)
 
         return mmr_change
 
