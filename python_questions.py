@@ -4,6 +4,24 @@ from database import create_tables, SessionLocal, Question
 def add_python_questions():
     db = SessionLocal()
     try:
+        # Проверяем, есть ли уже вопросы по Python в базе
+        existing_questions = (
+            db.query(Question)
+            .filter(
+                Question.level.like("junior_python%")
+                | Question.level.like("middle_python%")
+                | Question.level.like("senior_python%")
+            )
+            .count()
+        )
+
+        if existing_questions > 0:
+            print(
+                f"В базе уже есть {existing_questions} вопросов по Python. Пропускаем добавление."
+            )
+            return
+
+        # Если вопросов нет, добавляем их
         # Junior level questions
         junior_questions = [
             {

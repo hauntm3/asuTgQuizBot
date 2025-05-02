@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, D
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from contextlib import contextmanager
 
 Base = declarative_base()
 
@@ -58,6 +59,12 @@ class UserStats(Base):
             "junior_python": 1.0,
             "middle_python": 1.5,
             "senior_python": 2.0,
+            "junior_sql": 1.0,
+            "middle_sql": 1.5,
+            "senior_sql": 2.0,
+            "junior_java": 1.0,
+            "middle_java": 1.5,
+            "senior_java": 2.0,
         }
 
         # Получаем множитель сложности
@@ -91,9 +98,43 @@ class UserStats(Base):
 
         return mmr_change
 
+    def calculate_mmr_change_custom(self, correct_answers: int, total_questions: int):
+        """Рассчитывает изменение MMR для кастомного теста."""
+        if total_questions == 0:
+            return 0  # Нет вопросов - нет изменения MMR
+
+        score_percentage = (correct_answers / total_questions) * 100
+
+        # Базовые изменения MMR для кастомных тестов (без учета уровня)
+        if score_percentage < 30:
+            mmr_change = -50
+        elif score_percentage < 50:
+            mmr_change = -30
+        elif score_percentage < 70:
+            mmr_change = -15
+        elif score_percentage < 90:
+            mmr_change = 20
+        else:
+            mmr_change = 40
+
+        # Применяем общие правила (защита новичков, штрафы для опытных)
+        if self.mmr < 800:
+            if mmr_change < 0:
+                mmr_change = int(mmr_change * 0.5)
+        elif self.mmr > 2000:
+            if mmr_change < 0:
+                mmr_change = int(mmr_change * 1.5)
+
+        # Ограничение на максимальное/минимальное изменение (можно настроить)
+        mmr_change = max(
+            min(mmr_change, 100), -75
+        )  # Немного другие рамки для кастомных
+
+        return mmr_change
+
 
 # Создаем подключение к базе данных
-engine = create_engine("sqlite:///java_quiz.db")
+engine = create_engine("sqlite:///asu_quiz.db")
 SessionLocal = sessionmaker(bind=engine)
 
 
@@ -102,6 +143,7 @@ def create_tables():
     Base.metadata.create_all(engine)
 
 
+@contextmanager
 def get_db():
     db = SessionLocal()
     try:
