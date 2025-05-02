@@ -4,14 +4,28 @@ from database import create_tables, SessionLocal, Question
 def add_java_questions():
     db = SessionLocal()
     try:
-        # Очищаем таблицу вопросов перед добавлением новых
-        db.query(Question).delete()
-        db.commit()
+        # Проверяем, есть ли уже вопросы по Java в базе
+        existing_questions = (
+            db.query(Question)
+            .filter(
+                Question.level.like("junior_java%")
+                | Question.level.like("middle_java%")
+                | Question.level.like("senior_java%")
+            )
+            .count()
+        )
 
+        if existing_questions > 0:
+            print(
+                f"В базе уже есть {existing_questions} вопросов по Java. Пропускаем добавление."
+            )
+            return
+
+        # Если вопросов нет, добавляем их
         # Junior level questions
         junior_questions = [
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое JVM?",
                 "option1": "Java Virtual Machine - виртуальная машина Java",
                 "option2": "Java Visual Manager - визуальный менеджер Java",
@@ -20,7 +34,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Какой модификатор доступа является самым строгим в Java?",
                 "option1": "public",
                 "option2": "protected",
@@ -29,7 +43,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Какой тип данных в Java используется для хранения целых чисел?",
                 "option1": "float",
                 "option2": "string",
@@ -38,7 +52,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое конструктор в Java?",
                 "option1": "Метод, который вызывается при удалении объекта",
                 "option2": "Метод для создания и инициализации объекта",
@@ -47,7 +61,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Какое ключевое слово используется для наследования в Java?",
                 "option1": "implements",
                 "option2": "inherits",
@@ -56,7 +70,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое перегрузка методов (method overloading)?",
                 "option1": "Изменение реализации метода в подклассе",
                 "option2": "Создание нескольких методов с одинаковым именем, но разными параметрами",
@@ -65,7 +79,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Какой метод является точкой входа в Java-программу?",
                 "option1": "run()",
                 "option2": "start()",
@@ -74,7 +88,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое package в Java?",
                 "option1": "Архив с Java-файлами",
                 "option2": "Механизм для организации классов в пространства имен",
@@ -83,7 +97,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Как объявить массив в Java?",
                 "option1": "array[] int = new array(10)",
                 "option2": "int array = new int[10]",
@@ -92,7 +106,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое интерфейс в Java?",
                 "option1": "Графический пользовательский интерфейс",
                 "option2": "Абстрактный класс с реализацией методов",
@@ -101,7 +115,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое переменная в Java?",
                 "option1": "Значение, которое нельзя изменить",
                 "option2": "Именованная область памяти для хранения данных",
@@ -110,7 +124,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Какой цикл используется, когда количество итераций известно заранее?",
                 "option1": "while",
                 "option2": "do-while",
@@ -119,7 +133,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое String в Java?",
                 "option1": "Примитивный тип данных",
                 "option2": "Класс для работы с текстовыми данными",
@@ -128,7 +142,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Как создать объект класса в Java?",
                 "option1": "new Object();",
                 "option2": "create Object();",
@@ -137,7 +151,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое условный оператор if?",
                 "option1": "Оператор цикла",
                 "option2": "Оператор для проверки условия и выполнения кода",
@@ -146,7 +160,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Как объявить константу в Java?",
                 "option1": "const int number = 10;",
                 "option2": "final int NUMBER = 10;",
@@ -155,7 +169,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое комментарии в Java?",
                 "option1": "Специальные команды для компилятора",
                 "option2": "Пояснения к коду, игнорируемые компилятором",
@@ -164,7 +178,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Какой метод используется для чтения строки с клавиатуры?",
                 "option1": "System.out.println()",
                 "option2": "Scanner.nextLine()",
@@ -173,7 +187,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Что такое break в Java?",
                 "option1": "Оператор для завершения программы",
                 "option2": "Оператор для выхода из цикла или switch",
@@ -182,7 +196,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "junior",
+                "level": "junior_java",
                 "question_text": "Как преобразовать строку в число в Java?",
                 "option1": "toString()",
                 "option2": "Integer.parseInt()",
@@ -195,7 +209,7 @@ def add_java_questions():
         # Middle level questions
         middle_questions = [
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое многопоточность в Java?",
                 "option1": "Выполнение нескольких задач одновременно",
                 "option2": "Создание множества объектов",
@@ -204,7 +218,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн Singleton?",
                 "option1": "Паттерн для создания множества объектов",
                 "option2": "Паттерн, гарантирующий существование только одного экземпляра класса",
@@ -213,7 +227,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое коллекции в Java?",
                 "option1": "Классы для работы с файлами",
                 "option2": "Фреймворк для хранения и обработки групп объектов",
@@ -222,7 +236,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое Stream API в Java?",
                 "option1": "API для работы с потоками ввода-вывода",
                 "option2": "API для функционального программирования с коллекциями",
@@ -231,7 +245,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое лямбда-выражения в Java?",
                 "option1": "Анонимные классы",
                 "option2": "Короткая форма записи анонимных функций",
@@ -240,7 +254,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое Garbage Collection?",
                 "option1": "Ручное управление памятью",
                 "option2": "Автоматическое освобождение неиспользуемой памяти",
@@ -249,7 +263,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое аннотации в Java?",
                 "option1": "Комментарии в коде",
                 "option2": "Метаданные для классов и методов",
@@ -258,7 +272,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое Reflection API?",
                 "option1": "API для работы с изображениями",
                 "option2": "API для получения информации о классах во время выполнения",
@@ -267,7 +281,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое дженерики (Generics)?",
                 "option1": "Общие методы для всех классов",
                 "option2": "Механизм обобщенного программирования с типами",
@@ -276,7 +290,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое сериализация в Java?",
                 "option1": "Шифрование данных",
                 "option2": "Преобразование объекта в последовательность байтов",
@@ -285,7 +299,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое Optional в Java?",
                 "option1": "Обязательный параметр метода",
                 "option2": "Контейнер для работы с null-значениями",
@@ -294,7 +308,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое функциональные интерфейсы?",
                 "option1": "Интерфейсы без методов",
                 "option2": "Интерфейсы с одним абстрактным методом",
@@ -303,7 +317,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое CompletableFuture?",
                 "option1": "Синхронное выполнение кода",
                 "option2": "Класс для асинхронного программирования",
@@ -312,7 +326,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн Factory Method?",
                 "option1": "Метод для создания фабрик",
                 "option2": "Паттерн для создания объектов без явного указания их классов",
@@ -321,7 +335,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн Observer?",
                 "option1": "Паттерн для наблюдения за объектами",
                 "option2": "Паттерн для оповещения объектов об изменениях",
@@ -330,7 +344,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн Strategy?",
                 "option1": "Паттерн для создания стратегий",
                 "option2": "Паттерн для определения семейства алгоритмов",
@@ -339,7 +353,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн Decorator?",
                 "option1": "Паттерн для украшения кода",
                 "option2": "Паттерн для динамического добавления поведения объекту",
@@ -348,7 +362,7 @@ def add_java_questions():
                 "correct_option": 2,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн Adapter?",
                 "option1": "Паттерн для адаптации кода",
                 "option2": "Паттерн для преобразования интерфейса класса в другой интерфейс",
@@ -357,7 +371,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн Command?",
                 "option1": "Паттерн для создания команд",
                 "option2": "Паттерн для инкапсуляции запроса в объект",
@@ -366,7 +380,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "middle",
+                "level": "middle_java",
                 "question_text": "Что такое паттерн State?",
                 "option1": "Паттерн для работы с состояниями",
                 "option2": "Паттерн для изменения поведения объекта при изменении его состояния",
@@ -379,7 +393,7 @@ def add_java_questions():
         # Senior level questions
         senior_questions = [
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое CompletableFuture в Java?",
                 "option1": "Класс для работы с файлами",
                 "option2": "Интерфейс для создания потоков",
@@ -388,7 +402,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Какой паттерн лучше использовать для создания сложных объектов?",
                 "option1": "Singleton",
                 "option2": "Factory",
@@ -397,7 +411,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Spring Framework?",
                 "option1": "Библиотека для работы с базами данных",
                 "option2": "Фреймворк для создания веб-приложений",
@@ -406,7 +420,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое микросервисная архитектура?",
                 "option1": "Способ оптимизации кода",
                 "option2": "Архитектурный стиль, разделяющий приложение на небольшие независимые сервисы",
@@ -415,7 +429,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Docker?",
                 "option1": "Система управления базами данных",
                 "option2": "Платформа для контейнеризации приложений",
@@ -424,7 +438,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Reactive Programming?",
                 "option1": "Программирование игр",
                 "option2": "Парадигма программирования, основанная на потоках данных и распространении изменений",
@@ -433,7 +447,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Apache Kafka?",
                 "option1": "Web-сервер",
                 "option2": "Распределенная система обмена сообщениями",
@@ -442,7 +456,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое CI/CD?",
                 "option1": "Система контроля версий",
                 "option2": "Непрерывная интеграция и доставка/развертывание",
@@ -451,7 +465,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое OAuth 2.0?",
                 "option1": "Протокол шифрования",
                 "option2": "Протокол авторизации",
@@ -460,7 +474,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Event Sourcing?",
                 "option1": "Система логирования",
                 "option2": "Паттерн, при котором состояние приложения определяется последовательностью событий",
@@ -469,7 +483,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Service Mesh?",
                 "option1": "Сетевой протокол",
                 "option2": "Инфраструктурный слой для управления микросервисами",
@@ -478,7 +492,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое CQRS?",
                 "option1": "Система контроля версий",
                 "option2": "Паттерн разделения операций чтения и записи",
@@ -487,7 +501,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое DDD (Domain-Driven Design)?",
                 "option1": "Система документации",
                 "option2": "Подход к проектированию ПО, основанный на моделировании предметной области",
@@ -496,7 +510,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Kubernetes?",
                 "option1": "База данных",
                 "option2": "Система оркестрации контейнеров",
@@ -505,7 +519,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое gRPC?",
                 "option1": "Графическая библиотека",
                 "option2": "Система удаленного вызова процедур",
@@ -514,7 +528,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Istio?",
                 "option1": "База данных",
                 "option2": "Service mesh платформа для микросервисов",
@@ -523,7 +537,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Elasticsearch?",
                 "option1": "Web-сервер",
                 "option2": "Распределенная поисковая система",
@@ -532,7 +546,7 @@ def add_java_questions():
                 "correct_option": 4,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое GraphQL?",
                 "option1": "Графическая библиотека",
                 "option2": "Язык запросов для API",
@@ -541,7 +555,7 @@ def add_java_questions():
                 "correct_option": 1,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Chaos Engineering?",
                 "option1": "Методология разработки",
                 "option2": "Подход к тестированию устойчивости систем",
@@ -550,7 +564,7 @@ def add_java_questions():
                 "correct_option": 3,
             },
             {
-                "level": "senior",
+                "level": "senior_java",
                 "question_text": "Что такое Terraform?",
                 "option1": "База данных",
                 "option2": "Инструмент для управления инфраструктурой как кодом",
