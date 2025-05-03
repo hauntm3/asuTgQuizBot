@@ -32,7 +32,7 @@ from database import get_db, UserStats
 ) = range(9)
 
 # Путь к файлу для хранения кастомных тестов
-CUSTOM_TESTS_FILE = "custom_tests.json"
+CUSTOM_TESTS_FILE = "asuTgQuizBot/custom_tests.json"
 TESTS_PER_PAGE = 5  # Количество тестов на одной странице каталога
 
 # --- Функции для работы с хранилищем тестов ---

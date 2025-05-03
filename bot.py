@@ -309,6 +309,12 @@ async def finish_test(
     user_id: int,
     correct_answers: int,
 ):
+    # Объявляем переменные за пределами контекстного менеджера
+    level = ""
+    mmr_change = 0
+    old_mmr = 0
+    new_mmr = 0
+
     with get_db() as db:
         progress = (
             db.query(UserProgress).filter(UserProgress.user_id == user_id).first()
@@ -328,6 +334,7 @@ async def finish_test(
             stats.mmr = max(
                 0, stats.mmr + mmr_change
             )  # MMR не может быть отрицательным
+            new_mmr = stats.mmr  # Сохраняем новый MMR в локальную переменную
             stats.total_tests += 1
             stats.last_test_date = datetime.utcnow()
 
@@ -354,7 +361,7 @@ async def finish_test(
         f"\n\nРезультаты теста:\n"
         f"Уровень: {display_level.capitalize()}\n"
         f"Правильных ответов: {correct_answers}/10 ({percentage:.1f}%)\n"
-        f"MMR: {old_mmr} {mmr_text} {abs(mmr_change)} = {stats.mmr}\n"
+        f"MMR: {old_mmr} {mmr_text} {abs(mmr_change)} = {new_mmr}\n"
     )
 
     # Сначала отправляем сообщение с результатами без кнопок

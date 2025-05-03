@@ -134,7 +134,7 @@ class UserStats(Base):
 
 
 # Создаем подключение к базе данных
-engine = create_engine("sqlite:///asu_quiz.db")
+engine = create_engine("sqlite:///asuTgQuizBot/asu_quiz.db")
 SessionLocal = sessionmaker(bind=engine)
 
 
