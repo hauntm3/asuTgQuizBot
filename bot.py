@@ -44,6 +44,10 @@ from custom_tests import (
     run_custom_test,
     # Добавляем handle_custom_answer
     handle_custom_answer,
+    # Добавляем cancel_custom_test
+    cancel_custom_test,
+    # Добавляем отмену создания теста
+    cancel_test_creation,
 )
 
 # Загрузка переменных окружения из .env файла
@@ -240,6 +244,11 @@ async def send_question(
                 InlineKeyboardButton("3️⃣", callback_data="answer_3"),
                 InlineKeyboardButton("4️⃣", callback_data="answer_4"),
             ],
+            [
+                InlineKeyboardButton(
+                    "❌ Отменить тест", callback_data="cancel_standard_test"
+                )
+            ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -309,6 +318,12 @@ async def finish_test(
     user_id: int,
     correct_answers: int,
 ):
+    # Объявляем переменные за пределами контекстного менеджера
+    level = ""
+    mmr_change = 0
+    old_mmr = 0
+    new_mmr = 0
+
     with get_db() as db:
         progress = (
             db.query(UserProgress).filter(UserProgress.user_id == user_id).first()
@@ -328,6 +343,7 @@ async def finish_test(
             stats.mmr = max(
                 0, stats.mmr + mmr_change
             )  # MMR не может быть отрицательным
+            new_mmr = stats.mmr  # Сохраняем новый MMR в локальную переменную
             stats.total_tests += 1
             stats.last_test_date = datetime.utcnow()
 
@@ -354,7 +370,7 @@ async def finish_test(
         f"\n\nРезультаты теста:\n"
         f"Уровень: {display_level.capitalize()}\n"
         f"Правильных ответов: {correct_answers}/10 ({percentage:.1f}%)\n"
-        f"MMR: {old_mmr} {mmr_text} {abs(mmr_change)} = {stats.mmr}\n"
+        f"MMR: {old_mmr} {mmr_text} {abs(mmr_change)} = {new_mmr}\n"
     )
 
     # Сначала отправляем сообщение с результатами без кнопок
@@ -446,6 +462,37 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.edit_message_text(text=text, reply_markup=reply_markup)
 
 
+# Добавляем новый обработчик для отмены обычного теста
+async def cancel_standard_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отменяет прохождение обычного теста (Python, Java, SQL)."""
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    with get_db() as db:
+        # Находим текущий прогресс и помечаем тест как завершенный
+        progress = (
+            db.query(UserProgress).filter(UserProgress.user_id == user_id).first()
+        )
+        if progress:
+            progress.is_testing = False
+            db.commit()
+
+    await query.edit_message_text(
+        "Тест отменен. Вы можете выбрать другой тест или вернуться в главное меню.",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔄 Начать другой тест", callback_data="start_test"
+                    )
+                ],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")],
+            ]
+        ),
+    )
+
+
 def setup_handlers(application):
     """Настройка обработчиков сообщений"""
     # Обработчик диалога для создания теста
@@ -458,22 +505,40 @@ def setup_handlers(application):
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ask_test_name)
             ],
             ASK_QUESTION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_question)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_question),
+                CallbackQueryHandler(
+                    cancel_test_creation, pattern="^cancel_test_creation$"
+                ),
             ],
             ASK_OPTION_1: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_1)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_1),
+                CallbackQueryHandler(
+                    cancel_test_creation, pattern="^cancel_test_creation$"
+                ),
             ],
             ASK_OPTION_2: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_2)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_2),
+                CallbackQueryHandler(
+                    cancel_test_creation, pattern="^cancel_test_creation$"
+                ),
             ],
             ASK_OPTION_3: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_3)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_3),
+                CallbackQueryHandler(
+                    cancel_test_creation, pattern="^cancel_test_creation$"
+                ),
             ],
             ASK_OPTION_4: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_4)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_option_4),
+                CallbackQueryHandler(
+                    cancel_test_creation, pattern="^cancel_test_creation$"
+                ),
             ],
             ASK_CORRECT_OPTION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_correct_option)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_correct_option),
+                CallbackQueryHandler(
+                    cancel_test_creation, pattern="^cancel_test_creation$"
+                ),
             ],
             CONFIRM_ADD_QUESTION: [
                 CallbackQueryHandler(
@@ -513,6 +578,14 @@ def setup_handlers(application):
     # Добавляем обработчик для ответов на кастомный тест
     application.add_handler(
         CallbackQueryHandler(handle_custom_answer, pattern="^custom_answer_")
+    )
+    # Добавляем обработчик для отмены кастомного теста
+    application.add_handler(
+        CallbackQueryHandler(cancel_custom_test, pattern="^cancel_custom_test$")
+    )
+    # Добавляем обработчик для отмены обычного теста
+    application.add_handler(
+        CallbackQueryHandler(cancel_standard_test, pattern="^cancel_standard_test$")
     )
 
 

@@ -63,16 +63,9 @@ pip install -r requirements.txt
 BOT_TOKEN="ваш_токен_бота"
 ```
 
-4. Запустите файлы:
+4. Запустите бота:
 ```bash
-python java_questions.py
-python python_questions.py
-```
-Если у вас нет базы данных/вы хотите обновить её.
-
-5. Запустите бота:
-```bash
-python bot.py
+python main.py
 ```
 
 ## Планы на будущее
@@ -99,6 +92,5 @@ python bot.py
 - `sql_questions.py` - вопросы по SQL
 - `requirements.txt` - зависимости проекта
 - `custom_tests.py` - логика создания и прохождения кастомных тестов (NEW!)
-- `custom_tests.json` - файл для хранения кастомных тестов (NEW!)
 - `asu_quiz.db` - база данных SQLite
 - `.env` - файл с переменными окружения

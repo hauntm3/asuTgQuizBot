@@ -1,5 +1,10 @@
 # Файлы с переменными окружения
 .env
+# База данных
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
 
 # Кэш Python
 __pycache__/
