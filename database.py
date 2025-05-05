@@ -1,6 +1,15 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, DateTime
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    Boolean,
+    Float,
+    DateTime,
+    ForeignKey,
+)
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -131,6 +140,37 @@ class UserStats(Base):
         )  # Немного другие рамки для кастомных
 
         return mmr_change
+
+
+class CustomTest(Base):
+    __tablename__ = "custom_tests"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    author_id = Column(Integer, nullable=False)
+    author_username = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Связь с вопросами
+    questions = relationship(
+        "CustomQuestion", back_populates="test", cascade="all, delete-orphan"
+    )
+
+
+class CustomQuestion(Base):
+    __tablename__ = "custom_questions"
+
+    id = Column(Integer, primary_key=True)
+    test_id = Column(Integer, ForeignKey("custom_tests.id"), nullable=False)
+    question_text = Column(String, nullable=False)
+    option1 = Column(String, nullable=False)
+    option2 = Column(String, nullable=False)
+    option3 = Column(String, nullable=False)
+    option4 = Column(String, nullable=False)
+    correct_option = Column(Integer, nullable=False)  # 1-4
+
+    # Связь с тестом
+    test = relationship("CustomTest", back_populates="questions")
 
 
 # Создаем подключение к базе данных

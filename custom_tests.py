@@ -11,7 +11,7 @@ import os
 from datetime import datetime
 
 # Импортируем get_db_session и UserStats из database.py
-from database import get_db, UserStats
+from database import get_db, UserStats, CustomTest, CustomQuestion
 
 # Импортируем main_menu из bot.py
 # Это может создать цикл импорта, если bot.py тоже импортирует что-то из custom_tests.py
@@ -31,29 +31,115 @@ from database import get_db, UserStats
     FINISH_TEST_CREATION,
 ) = range(9)
 
-# Путь к файлу для хранения кастомных тестов
-CUSTOM_TESTS_FILE = "asuTgQuizBot/custom_tests.json"
-TESTS_PER_PAGE = 5  # Количество тестов на одной странице каталога
+# Количество тестов на одной странице каталога
+TESTS_PER_PAGE = 5
 
 # --- Функции для работы с хранилищем тестов ---
 
 
 def load_custom_tests():
-    if not os.path.exists(CUSTOM_TESTS_FILE):
-        return {}
-    try:
-        with open(CUSTOM_TESTS_FILE, "r", encoding="utf-8") as f:
-            # Загружаем данные, преобразуя ключи (user_id) из строк в int
-            data = json.load(f)
-            return {int(k): v for k, v in data.items()}
-    except (json.JSONDecodeError, FileNotFoundError):
-        return {}  # Возвращаем пустой словарь, если файл пуст, не найден или поврежден
+    """Загружает тесты из базы данных и группирует их по user_id"""
+    tests_data = {}
+
+    with get_db() as db:
+        # Получаем все тесты
+        all_tests = db.query(CustomTest).all()
+
+        for test in all_tests:
+            # Преобразуем объект теста в словарь
+            test_dict = {
+                "name": test.name,
+                "author_id": test.author_id,
+                "author_username": test.author_username,
+                "questions": [],
+            }
+
+            # Получаем все вопросы для теста
+            for question in test.questions:
+                question_dict = {
+                    "text": question.question_text,
+                    "option1": question.option1,
+                    "option2": question.option2,
+                    "option3": question.option3,
+                    "option4": question.option4,
+                    "correct_option": question.correct_option,
+                }
+                test_dict["questions"].append(question_dict)
+
+            # Добавляем тест в словарь, группируя по user_id
+            if test.author_id not in tests_data:
+                tests_data[test.author_id] = []
+            tests_data[test.author_id].append(test_dict)
+
+    return tests_data
 
 
 def save_custom_tests(tests_data):
-    with open(CUSTOM_TESTS_FILE, "w", encoding="utf-8") as f:
-        # Сохраняем данные, ключи (user_id) остаются int, json их преобразует в строки
-        json.dump(tests_data, f, ensure_ascii=False, indent=4)
+    """Сохраняет тесты в базу данных"""
+    with get_db() as db:
+        # Для каждого пользователя
+        for author_id, tests in tests_data.items():
+            # Проверяем, существует ли автор
+            author_exists = (
+                db.query(UserStats).filter(UserStats.user_id == author_id).first()
+            )
+            author_username = (
+                author_exists.username if author_exists else f"User_{author_id}"
+            )
+
+            # Для каждого теста пользователя
+            for test_data in tests:
+                # Проверяем, существует ли тест с таким именем у данного пользователя
+                existing_test = (
+                    db.query(CustomTest)
+                    .filter(
+                        CustomTest.author_id == author_id,
+                        CustomTest.name == test_data["name"],
+                    )
+                    .first()
+                )
+
+                if existing_test:
+                    # Если тест существует, обновляем его имя
+                    existing_test.name = test_data["name"]
+                    existing_test.author_username = test_data.get(
+                        "author_username", author_username
+                    )
+
+                    # Удаляем существующие вопросы (они будут пересозданы)
+                    db.query(CustomQuestion).filter(
+                        CustomQuestion.test_id == existing_test.id
+                    ).delete()
+
+                    test_id = existing_test.id
+                else:
+                    # Создаем новый тест
+                    new_test = CustomTest(
+                        name=test_data["name"],
+                        author_id=author_id,
+                        author_username=test_data.get(
+                            "author_username", author_username
+                        ),
+                    )
+                    db.add(new_test)
+                    db.flush()  # Чтобы получить ID
+
+                    test_id = new_test.id
+
+                # Добавляем вопросы
+                for question_data in test_data.get("questions", []):
+                    new_question = CustomQuestion(
+                        test_id=test_id,
+                        question_text=question_data.get("text", ""),
+                        option1=question_data.get("option1", ""),
+                        option2=question_data.get("option2", ""),
+                        option3=question_data.get("option3", ""),
+                        option4=question_data.get("option4", ""),
+                        correct_option=question_data.get("correct_option", 1),
+                    )
+                    db.add(new_question)
+
+        db.commit()
 
 
 # Глобальный словарь для хранения всех кастомных тестов (user_id -> list of tests)
@@ -89,9 +175,15 @@ async def ask_test_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["new_test"]["name"] = test_name
     # Очищаем данные для нового вопроса
     context.user_data["current_question"] = {}
+    
+    # Добавляем кнопку отмены
+    keyboard = [[InlineKeyboardButton("❌ Отменить создание", callback_data="cancel_test_creation")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
         f"Название теста '{test_name}' принято.\n\n"
-        "Теперь введите текст первого вопроса:"
+        "Теперь введите текст первого вопроса:",
+        reply_markup=reply_markup
     )
     return ASK_QUESTION
 
@@ -106,8 +198,14 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ASK_QUESTION  # Остаемся в том же состоянии
 
     context.user_data["current_question"]["text"] = question_text
+    
+    # Добавляем кнопку отмены
+    keyboard = [[InlineKeyboardButton("❌ Отменить создание", callback_data="cancel_test_creation")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Вопрос принят. Теперь введите текст для первого варианта ответа (1️⃣):"
+        "Вопрос принят. Теперь введите текст для первого варианта ответа (1️⃣):",
+        reply_markup=reply_markup
     )
     return ASK_OPTION_1
 
@@ -122,8 +220,14 @@ async def ask_option_1(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ASK_OPTION_1
 
     context.user_data["current_question"]["option1"] = option1_text
+    
+    # Добавляем кнопку отмены
+    keyboard = [[InlineKeyboardButton("❌ Отменить создание", callback_data="cancel_test_creation")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Вариант 1 принят. Введите текст для второго варианта ответа (2️⃣):"
+        "Вариант 1 принят. Введите текст для второго варианта ответа (2️⃣):",
+        reply_markup=reply_markup
     )
     return ASK_OPTION_2
 
@@ -138,8 +242,14 @@ async def ask_option_2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ASK_OPTION_2
 
     context.user_data["current_question"]["option2"] = option2_text
+    
+    # Добавляем кнопку отмены
+    keyboard = [[InlineKeyboardButton("❌ Отменить создание", callback_data="cancel_test_creation")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Вариант 2 принят. Введите текст для третьего варианта ответа (3️⃣):"
+        "Вариант 2 принят. Введите текст для третьего варианта ответа (3️⃣):",
+        reply_markup=reply_markup
     )
     return ASK_OPTION_3
 
@@ -154,8 +264,14 @@ async def ask_option_3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ASK_OPTION_3
 
     context.user_data["current_question"]["option3"] = option3_text
+    
+    # Добавляем кнопку отмены
+    keyboard = [[InlineKeyboardButton("❌ Отменить создание", callback_data="cancel_test_creation")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Вариант 3 принят. Введите текст для четвертого варианта ответа (4️⃣):"
+        "Вариант 3 принят. Введите текст для четвертого варианта ответа (4️⃣):",
+        reply_markup=reply_markup
     )
     return ASK_OPTION_4
 
@@ -170,8 +286,14 @@ async def ask_option_4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ASK_OPTION_4
 
     context.user_data["current_question"]["option4"] = option4_text
+    
+    # Добавляем кнопку отмены
+    keyboard = [[InlineKeyboardButton("❌ Отменить создание", callback_data="cancel_test_creation")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Вариант 4 принят. Теперь введите номер правильного варианта ответа (от 1 до 4):"
+        "Вариант 4 принят. Теперь введите номер правильного варианта ответа (от 1 до 4):",
+        reply_markup=reply_markup
     )
     return ASK_CORRECT_OPTION
 
@@ -525,7 +647,7 @@ async def send_custom_question(
             InlineKeyboardButton("3️⃣", callback_data="custom_answer_3"),
             InlineKeyboardButton("4️⃣", callback_data="custom_answer_4"),
         ],
-        # TODO: Добавить кнопку отмены/выхода из теста?
+        [InlineKeyboardButton("❌ Отменить тест", callback_data="cancel_custom_test")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -714,3 +836,50 @@ async def finish_custom_test(
     # Очищаем состояние теста из user_data
     if "custom_test" in context.user_data:
         del context.user_data["custom_test"]
+
+
+async def cancel_custom_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отменяет прохождение кастомного теста."""
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    # Очищаем состояние теста из user_data
+    if "custom_test" in context.user_data:
+        del context.user_data["custom_test"]
+
+    await query.edit_message_text(
+        "Тест отменен. Вы можете выбрать другой тест или вернуться в главное меню.",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "📚 Назад в каталог", callback_data="test_catalog"
+                    )
+                ],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")],
+            ]
+        ),
+    )
+
+
+# Добавляем новый обработчик для отмены создания теста по клику на кнопку
+async def cancel_test_creation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Отменяет создание теста по клику на кнопку"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Очищаем данные создания теста
+    if "new_test" in context.user_data:
+        del context.user_data["new_test"]
+    if "current_question" in context.user_data:
+        del context.user_data["current_question"]
+        
+    await query.edit_message_text(
+        "Создание теста отменено.",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]]
+        )
+    )
+    
+    return ConversationHandler.END
